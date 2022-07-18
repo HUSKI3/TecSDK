@@ -1,4 +1,5 @@
 Options:
 * new - Create a new TecSDK project
+* newc - Create a new Cog project
 * help - Show documentation
 * exit - Exit

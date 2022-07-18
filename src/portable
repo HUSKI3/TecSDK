@@ -1,0 +1,63 @@
+import os, re, subprocess, sys
+
+class colours:
+    Green = "\033[92m"
+    Reset = "\033[0m"
+
+rootdir = '.'
+
+exclude_dirs = [
+    'old',
+    'main.build'
+]
+exclude_files = [
+    "cmp_all.py"
+]
+
+to_build = [
+    r'tli.py'
+]
+
+fallback = os.getcwd()
+
+# Check if nuitka is installed
+_installed_packages = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
+installed_packages = [r.decode().split('==')[0] for r in _installed_packages.split()]
+
+if "Nuitka" not in installed_packages:
+    print(f"Failed, Nuitka was not detected. Python {sys.executable}. Install? [y/N]")
+    if input() in ['y', 'Y']:
+        r = subprocess.run([sys.executable, "-m", "pip", "install", "nuitka", "--disable-pip-version-check"])
+        input("Intalled, press enter to continue...")
+    else:
+        print("Aborting...")
+        quit()
+
+for root, dirs, files in os.walk(rootdir):
+    files = [f for f in files if not f[0] == '.' and f[0:2] != '__' and f not in exclude_files]
+    dirs[:] = [d for d in dirs if not d[0] == '.' and d[0:2] != '__' and d not in exclude_dirs]
+    
+
+    x = [os.path.join(root, f) for f in dirs + files]
+    for _ in x:
+        cdir, file = _.rsplit('/', 1)
+        
+        #print(cdir, file)
+        for case in to_build:
+            if re.match(case, file):
+                input(colours.Green + f"ToBuild [{file}] --> matched '{case}'" + colours.Reset + " Proceed?")
+
+                # Prepr
+                os.chdir(cdir)
+
+                #subprocess.run(["pwd"])
+                new_file = file.rsplit('.')
+                result = subprocess.run([sys.executable, "-m", "nuitka", "--standalone", file, "--remove-output"])
+                print(os.getcwd())
+                #input()
+
+                continue
+        os.chdir(fallback)
+
+
+

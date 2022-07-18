@@ -24,8 +24,10 @@ import subprocess
 import sys
 import os
 
+
+# Update git_hash to instead check the .hash file created during each build
 def git_hash() -> str:
-    return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+    return open(".hash","r").read().strip()
 
 __version__ = git_hash()
 
@@ -53,6 +55,11 @@ def proc_cmd_syn(cmd: list[str]) -> str:
 class System:
     root = '.'
     assets = "assets"
+    config_file = json.load(open("config", "r"))
+
+    def config(e):
+        if e in System.config_file:
+            return System.config_file[e]
 
     def resources(c):
         return str( System.root + "/" + System.assets + "/" + c )
@@ -92,7 +99,14 @@ class System:
         '''
         path = os.path.join(root, target)
         os.mkdir(path)
-        return path+'poop'
+        return path
+    
+    def remove_file(
+        root: str,
+        target: str
+    ) -> str:
+        if os.path.exists(os.path.join(home, target)):
+            os.remove(os.path.join(root, target))
 
     def create_file(
         name,
@@ -151,10 +165,16 @@ class Console:
             args: list[str]
         ):
 
+        # Run python version checks first 
+        if System.pyversion() in System.config("supported_python"):
+            compatible = "✅"
+        else: compatible = "❌ Unsupported"
+
         # Show TUI
         if not args.no_ascii:
             print(open(System.resources("art"),"r").read())
-            print(f"Version {__version__} on Python {System.pyversion()}")
+            print(f"Version {__version__} on Python {System.pyversion()} {compatible}")
+
 
         if args.debug:
             print(args, "Debug Mode :warning:")
@@ -191,6 +211,9 @@ parse.add_argument('--debug',
 parse.add_argument('--install-full',
                        action='store_true',
                        help='install full tecsdk locally')
+parse.add_argument('--check-recipe',
+                       action='store_true',
+                       help='install full tecsdk locally')
 
 args = parse.parse_args()
 
@@ -202,6 +225,20 @@ else:
     # Prepare for the install
     home = str(Path.home())
     target = '.tecsdk'
+    if not args.no_ascii:
+        print(open(System.resources("art"),"r").read())
+    print("Preparing bundle and resources...")
+
+    # Clean previously downloaded files
+    for file in [
+        "demo.tar.xz",
+        "tcore-bundle.tar.gz"
+    ]:
+        System.remove_file(home, target+'/'+file)
+
+    if System.pyversion() not in System.config("supported_python"):
+        print(f"❌ Unsupported Python version ({System.pyversion()}) - Aborting installation")
+        quit()
     
     if not os.path.exists(os.path.join(home, target)):
         target = System.create_dir(home, target)
@@ -210,7 +247,7 @@ else:
 
     os.chdir(target)
 
-    response = urlopen("http://20.56.72.151:8000/tecsdk.recipe")
+    response = urlopen(System.config("recipe_url"))
     size = int(response.headers["Content-Length"])
     recipe = []
 
@@ -218,6 +255,9 @@ else:
         for line in file:
             recipe.append(line.decode("utf-8"))
 
+    if args.check_recipe:
+        print(recipe)
+        quit()
     #if args.debug:
     #    print(recipe)
 
@@ -243,3 +283,5 @@ else:
             file_name = component['download'].rsplit('/',1)[1]
             with open(file_name, 'wb+') as f:
                 f.writelines(data)
+
+    
