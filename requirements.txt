@@ -1,0 +1,12 @@
+rich
+poetry
+Flask == 2.1.2
+web3 == 5.29.2
+Flask-Cors == 3.0.10
+SQLAlchemy == 1.4.39
+plyer == 2.0.0
+PyYAML == 6.0
+jnius
+importlib_metadata
+flask-socketio
+Werkzeug == 2.1.2

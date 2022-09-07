@@ -23,13 +23,20 @@ import json
 import subprocess
 import sys
 import os
-
+from subprocess import Popen, PIPE
 
 # Update git_hash to instead check the .hash file created during each build
 def git_hash() -> str:
-    return open(".hash","r").read().strip()
+    if os.path.exists(".hash"):
+        return open(".hash","r").read().strip() # cyclotron 5000
+    else: return "0.0.0-dev"
+
+# Assume OpenJDK is installed
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64"
 
 __version__ = git_hash()
+home = str(Path.home())
+target = '.tecsdk'
 
 class Project:
     def __init__(
@@ -131,8 +138,6 @@ class EnvHandler:
         pyv = System.pyversion()
 
 
-
-
 class Console:
     def __init__(
         self
@@ -189,15 +194,69 @@ class Console:
             md = Markdown(open(System.resources("menu"),'r').read())
             rconsole.print(md)
             while 1:
-                _ = Prompt.ask(">", choices=["new", "help", "exit"], default="")
-                if _ in opts:
-                    opts[_]()
+                try:
+                    _ = Prompt.ask(">", choices=["new", "help", "exit"], default="")
+                    if _ in opts:
+                        opts[_]()
+                except EOFError:
+                    raise Exception("Sorry, running the tui is not yet supported in Docker. Please use --parse {...} instead")
+        
+        else:
+            args.parse = """
+            {
+                "name": "test",
+                "path": "./newfolder/",
+                "author": "HUSKI3"
+            }"""
+
+            # Parse 
+            project_data = json.loads(args.parse)
+            if {
+                "name",
+                "path",
+                "author"
+            } <= project_data.keys():
+                pass
+            else:
+                print("Not yet implemented")
 
 
 console = Console()
+from time import sleep
+
+global CoreService
+CoreService = None
+
+def startCore():
+    os.chdir(
+        os.path.join(os.path.join(home, target), "bundle")
+    )
+    CoreService = Popen(["python3", "main.py"], stdin=PIPE, stdout=PIPE)
+    #time.sleep(5)
+    #l = CoreService.stdout.readlines()
+    print(f"Service started with pid: {CoreService.pid}")
+    # Cycle so docker doesnt kill us
+    while True: sleep(1)
+
+def statusCore():
+    os.chdir(
+        os.path.join(home, target)
+    )
+    os.system("tree")
+    l = CoreService.stdout.readlines()
+    print(l)
+
+
+actions = {
+    "start": startCore,
+    #"stop": stopCore,
+    "status": statusCore
+}
 
 # Parse args
 parse = argparse.ArgumentParser()
+
+parse.add_argument('mode', choices=['start', 'stop', 'status'], nargs="?")
 
 parse.add_argument('--no-ascii',
                        action='store_true',
@@ -213,39 +272,42 @@ parse.add_argument('--install-full',
                        help='install full tecsdk locally')
 parse.add_argument('--check-recipe',
                        action='store_true',
-                       help='install full tecsdk locally')
+                       help='Check recipe from the dist server')
 
 args = parse.parse_args()
 
-if not args.install_full:
+if not args.install_full\
+    and not args.check_recipe\
+        and not args.mode:
     console.run(
         args
     )
+elif args.mode:
+    actions[args.mode]()
 else:
     # Prepare for the install
-    home = str(Path.home())
-    target = '.tecsdk'
     if not args.no_ascii:
         print(open(System.resources("art"),"r").read())
-    print("Preparing bundle and resources...")
+        print("Preparing bundle and resources...")
 
     # Clean previously downloaded files
-    for file in [
-        "demo.tar.xz",
-        "tcore-bundle.tar.gz"
-    ]:
-        System.remove_file(home, target+'/'+file)
+    if not args.check_recipe:
+        for file in [
+            "demo.tar.xz",
+            "tcore-bundle.tar.gz"
+        ]:
+            System.remove_file(home, target+'/'+file)
 
-    if System.pyversion() not in System.config("supported_python"):
-        print(f"❌ Unsupported Python version ({System.pyversion()}) - Aborting installation")
-        quit()
-    
-    if not os.path.exists(os.path.join(home, target)):
-        target = System.create_dir(home, target)
-        print("Created directory ✅")
-    else: print("Exists ✅"); target = os.path.join(home, target)
+        if System.pyversion() not in System.config("supported_python"):
+            print(f"❌ Unsupported Python version ({System.pyversion()}) - Aborting installation")
+            quit()
 
-    os.chdir(target)
+        if not os.path.exists(os.path.join(home, target)):
+            target = System.create_dir(home, target)
+            print("Created directory ✅")
+        else: print("Exists ✅"); target = os.path.join(home, target)
+
+        os.chdir(target)
 
     response = urlopen(System.config("recipe_url"))
     size = int(response.headers["Content-Length"])
@@ -284,4 +346,6 @@ else:
             with open(file_name, 'wb+') as f:
                 f.writelines(data)
 
-    
+        # TODO: Change this, add proper unpackaging
+        if ".tar.gz" in file_name:
+            os.system(f"tar xf {file_name}")

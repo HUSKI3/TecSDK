@@ -33,4 +33,3 @@ RUN chmod +x debug.sh
 RUN xdg-user-dirs-update
 
 
-ENTRYPOINT ["python3", "tli.py"] 
