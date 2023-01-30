@@ -6,7 +6,8 @@ Flask-Cors == 3.0.10
 SQLAlchemy == 1.4.39
 plyer == 2.0.0
 PyYAML == 6.0
-jnius
 importlib_metadata
+pyjnius
 flask-socketio
 Werkzeug == 2.1.2
+packaging

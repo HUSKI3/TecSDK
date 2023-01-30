@@ -7,6 +7,7 @@ from rich.progress import Progress, wrap_file
 from rich.console import Console as RConsole
 from rich.markdown import Markdown
 from rich.text import Text
+from packaging import version
 # ------------
 rconsole = RConsole()
 
@@ -171,7 +172,7 @@ class Console:
         ):
 
         # Run python version checks first 
-        if System.pyversion() in System.config("supported_python"):
+        if version.parse(System.pyversion()) > version.parse(System.config("supported_python")):
             compatible = "✅"
         else: compatible = "❌ Unsupported"
 
@@ -298,7 +299,7 @@ else:
         ]:
             System.remove_file(home, target+'/'+file)
 
-        if System.pyversion() not in System.config("supported_python"):
+        if version.parse(System.pyversion()) < version.parse(System.config("supported_python")):
             print(f"❌ Unsupported Python version ({System.pyversion()}) - Aborting installation")
             quit()
 
