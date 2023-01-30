@@ -1,4 +1,4 @@
 {
-    "supported_python": ["3.9.7", "3.9.13"],
+    "supported_python": "3.9.7",
     "recipe_url": "http://20.86.26.32:8000/tecsdk.recipe"
 }
